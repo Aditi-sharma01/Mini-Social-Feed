@@ -1,10 +1,13 @@
 // Import required packages
+require('dotenv').config();
+
+
 const authRoutes = require('./routes/authRoutes');
 const express = require('express');
 const mongoose = require('mongoose');
 const postRoutes = require('./routes/postRoutes');
 const cors = require('cors');
-require('dotenv').config(); // Load environment variables from .env file
+ // Load environment variables from .env file
 
 // Create an Express application
 const app = express();

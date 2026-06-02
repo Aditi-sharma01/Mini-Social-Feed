@@ -1,10 +1,12 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
-import { Card, CardContent, Typography, Container, Box, Alert, TextField, Button, AppBar, Toolbar } from '@mui/material';
+import { Card, CardContent, Typography, Container, Box, Alert, TextField, Button, AppBar, Toolbar, Avatar, Divider } from '@mui/material';
 import FavoriteBorderIcon from '@mui/icons-material/FavoriteBorder';
 import FavoriteIcon from '@mui/icons-material/Favorite';
 import LogoutIcon from '@mui/icons-material/Logout';
+import CommentIcon from "@mui/icons-material/Comment";
+import ShareIcon from '@mui/icons-material/Share';
 
 // Feed page component - displays posts from the backend API with improved UI
 function Feed() {
@@ -49,7 +51,7 @@ function Feed() {
   const [username, setUsername] = useState('');
 
   // State for image URL input - stores the image URL user types
-  const [imageUrl, setImageUrl] = useState('');
+  const [selectedImage, setSelectedImage] = useState(null);
 
   // Function to fetch posts from the backend - extracted so we can call it again after creating a post
   const fetchPosts = async () => {
@@ -100,7 +102,7 @@ function Feed() {
     setCreatePostError('');
 
     // Validate that at least text or image URL is provided
-    if (!newPost.trim() && !imageUrl.trim()) {
+    if (!newPost.trim() && !selectedImage) {
       setCreatePostError('Please add text or an image URL');
       return;
     }
@@ -120,25 +122,31 @@ function Feed() {
 
       // Send POST request to create a new post
       // Include Authorization header with the JWT token
-      const response = await axios.post(
-        'http://localhost:5000/api/posts/create',
-        {
-          text: newPost, // Post text/content
-          imageUrl: imageUrl, // Image URL (optional)
-        },
-        {
-          headers: {
-            Authorization: `Bearer ${token}`, // Add JWT token to header
-          },
-        }
-      );
+      const formData = new FormData();
+
+formData.append('text', newPost);
+
+if (selectedImage) {
+  formData.append('image', selectedImage);
+}
+
+const response = await axios.post(
+  'http://localhost:5000/api/posts/create',
+  formData,
+  {
+    headers: {
+      Authorization: `Bearer ${token}`,
+      'Content-Type': 'multipart/form-data',
+    },
+  }
+);
 
       // Show success message
       setSuccessMessage('Post created successfully!');
 
       // Clear the text and image URL input fields
       setNewPost('');
-      setImageUrl('');
+      setSelectedImage(null);
 
       // Fetch posts again to show the new post immediately
       await fetchPosts();
@@ -177,7 +185,7 @@ function Feed() {
       // Mark this post as loading (disable like button)
       setLoadingLikes(prev => ({
   ...prev,
-  [postId]: false
+  [postId]: true
 }));
       // Send POST request to like the post
       const response = await axios.post(
@@ -215,7 +223,7 @@ function Feed() {
       // Stop loading for this post (enable like button)
       setLoadingLikes(prev => ({
   ...prev,
-  [postId]: true
+  [postId]: false
 }));
     }
   };
@@ -284,24 +292,54 @@ function Feed() {
   };
 
   return (
-    <Box sx={{ minHeight: '100vh', backgroundColor: '#f5f5f5' }}>
-      {/* === IMPROVED HEADER WITH USERNAME AND LOGOUT === */}
-      {/* Navigation bar at the top with username display and logout button */}
-      <AppBar position="sticky" sx={{ marginBottom: 4, boxShadow: '0 2px 8px rgba(0,0,0,0.1)' }}>
-        <Toolbar sx={{ display: 'flex', justifyContent: 'space-between' }}>
-          {/* App title */}
-          <Typography variant="h5" component="div" sx={{ fontWeight: 'bold' }}>
-            Social Feed
+    <Box sx={{ minHeight: '100vh', backgroundColor: '#f8f9fa' }}>
+      {/* === HEADER WITH "SOCIAL" TITLE AND USER PROFILE === */}
+      <AppBar 
+        position="sticky" 
+        sx={{ 
+          backgroundColor: '#fff',
+          color: '#000',
+          boxShadow: '0 2px 4px rgba(0,0,0,0.05)',
+          marginBottom: 2
+        }}
+      >
+        <Toolbar sx={{ display: 'flex', justifyContent: 'space-between', paddingY: 2 }}>
+          {/* Large "Social" title on the left */}
+          <Typography 
+            variant="h4" 
+            component="div" 
+            sx={{ 
+              fontWeight: 'bold',
+              color: '#000',
+              fontSize: '2rem'
+            }}
+          >
+            Social
           </Typography>
 
-          {/* Right side: username and logout button */}
+          {/* Right side: user profile and logout button */}
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
             {/* Display logged-in username */}
             {username && (
-              <Typography variant="body1" sx={{ fontWeight: '500' }}>
-                Welcome, {username}!
-              </Typography>
+              <Box sx={{ textAlign: 'right' }}>
+                <Typography variant="body2" sx={{ fontWeight: '600', color: '#000' }}>
+                  {username}
+                </Typography>
+              </Box>
             )}
+
+            {/* User avatar circle */}
+            <Avatar 
+              sx={{ 
+                width: 40, 
+                height: 40,
+                backgroundColor: '#1976d2',
+                fontWeight: 'bold',
+                cursor: 'pointer'
+              }}
+            >
+              {username ? username.charAt(0).toUpperCase() : 'U'}
+            </Avatar>
 
             {/* Logout button - clears localStorage and redirects to login */}
             <Button
@@ -309,7 +347,7 @@ function Feed() {
               color="error"
               startIcon={<LogoutIcon />}
               onClick={handleLogout}
-              sx={{ textTransform: 'none', fontSize: '0.95rem' }}
+              sx={{ textTransform: 'none', fontSize: '0.9rem' }}
             >
               Logout
             </Button>
@@ -319,23 +357,22 @@ function Feed() {
 
       <Container maxWidth="md" sx={{ paddingBottom: 4 }}>
         {/* === CREATE POST SECTION === */}
-        {/* Card with improved styling - rounded corners, subtle shadow, better spacing */}
         <Card
           sx={{
             marginBottom: 4,
             borderRadius: 2,
-            boxShadow: '0 4px 12px rgba(0,0,0,0.08)',
+            boxShadow: '0 2px 8px rgba(0,0,0,0.08)',
             backgroundColor: '#fff',
           }}
         >
           <CardContent sx={{ padding: 3 }}>
-            {/* Section title */}
+            {/* "Create Post" heading */}
             <Typography
-              variant="h6"
+              variant="h5"
               component="div"
-              sx={{ marginBottom: 3, fontWeight: '600', color: '#333' }}
+              sx={{ marginBottom: 3, fontWeight: '700', color: '#000' }}
             >
-              What's on your mind?
+              Create Post
             </Typography>
 
             {/* Success message - shown when post is created successfully */}
@@ -352,56 +389,59 @@ function Feed() {
               </Alert>
             )}
 
-            {/* Multiline text field for user to type post - improved styling */}
-            <TextField
-              fullWidth
-              multiline
-              rows={4}
-              placeholder="Share your thoughts..."
-              value={newPost}
-              onChange={(e) => setNewPost(e.target.value)}
-              disabled={creatingPost}
-              sx={{
-                marginBottom: 2,
-                '& .MuiOutlinedInput-root': {
-                  borderRadius: 1,
-                  backgroundColor: '#fafafa',
-                },
-              }}
-            />
+            {/* Large textarea for user to type post */}
+<TextField
+  fullWidth
+  multiline
+  rows={5}
+  placeholder="What's on your mind?"
+  value={newPost}
+  onChange={(e) => setNewPost(e.target.value)}
+  disabled={creatingPost}
+  sx={{
+    marginBottom: 2,
+    '& .MuiOutlinedInput-root': {
+      borderRadius: 1,
+      backgroundColor: '#f8f9fa',
+      fontSize: '1rem',
+    },
+  }}
+/>
 
-            {/* Image URL input field - user can add image URL (optional) */}
-            <TextField
-              fullWidth
-              placeholder="Image URL (optional)"
-              value={imageUrl}
-              onChange={(e) => setImageUrl(e.target.value)}
-              disabled={creatingPost}
-              sx={{
-                marginBottom: 2,
-                '& .MuiOutlinedInput-root': {
-                  borderRadius: 1,
-                  backgroundColor: '#fafafa',
-                },
-              }}
-            />
+{/* Image upload field */}
+<Box sx={{ marginBottom: 3 }}>
+  <input
+    type="file"
+    accept="image/*"
+    onChange={(e) => setSelectedImage(e.target.files[0])}
+    disabled={creatingPost}
+  />
 
-            {/* Create Post button - improved styling */}
-            <Button
-              variant="contained"
-              color="primary"
-              onClick={handleCreatePost}
-              disabled={creatingPost}
-              sx={{
-                textTransform: 'none',
-                fontSize: '1rem',
-                fontWeight: '600',
-                padding: '10px 24px',
-                borderRadius: 1,
-              }}
-            >
-              {creatingPost ? 'Creating...' : 'Post'}
-            </Button>
+  {selectedImage && (
+    <Typography variant="body2" sx={{ mt: 1 }}>
+      Selected: {selectedImage.name}
+    </Typography>
+  )}
+</Box>
+
+            {/* Create Post button - positioned on the right */}
+            <Box sx={{ display: 'flex', justifyContent: 'flex-end' }}>
+              <Button
+                variant="contained"
+                color="primary"
+                onClick={handleCreatePost}
+                disabled={creatingPost}
+                sx={{
+                  textTransform: 'none',
+                  fontSize: '1rem',
+                  fontWeight: '600',
+                  padding: '12px 32px',
+                  borderRadius: 1,
+                }}
+              >
+                {creatingPost ? 'Creating...' : 'Post'}
+              </Button>
+            </Box>
           </CardContent>
         </Card>
 
@@ -425,9 +465,10 @@ function Feed() {
           <Card
             sx={{
               borderRadius: 2,
-              boxShadow: '0 4px 12px rgba(0,0,0,0.08)',
+              boxShadow: '0 2px 8px rgba(0,0,0,0.08)',
               textAlign: 'center',
               padding: 4,
+              backgroundColor: '#fff',
             }}
           >
             <Typography variant="body1" color="textSecondary">
@@ -436,64 +477,79 @@ function Feed() {
           </Card>
         )}
 
-        {/* Display each post in a Card component - improved styling */}
+        {/* Display each post in a Card component */}
         {posts.map((post) => (
           <Card
             key={post._id}
             sx={{
               marginBottom: 3,
               borderRadius: 2,
-              boxShadow: '0 4px 12px rgba(0,0,0,0.08)',
+              boxShadow: '0 2px 8px rgba(0,0,0,0.08)',
               backgroundColor: '#fff',
               transition: 'box-shadow 0.3s ease',
               '&:hover': {
-                boxShadow: '0 6px 16px rgba(0,0,0,0.12)',
+                boxShadow: '0 4px 12px rgba(0,0,0,0.12)',
               },
             }}
           >
             <CardContent sx={{ padding: 3 }}>
-              {/* === HIGHLIGHTED USERNAME === */}
-              {/* Username displayed prominently in bold */}
-              <Typography
-                variant="h6"
-                component="div"
-                sx={{
-                  fontWeight: '700',
-                  color: '#1976d2',
-                  marginBottom: 1,
-                }}
-              >
-                {post.username}
-              </Typography>
+              {/* === USER INFO ROW: Avatar, Username, Timestamp === */}
+              <Box sx={{ display: 'flex', alignItems: 'flex-start', gap: 2, marginBottom: 2 }}>
+                {/* User avatar circle */}
+                <Avatar
+                  sx={{
+                    width: 48,
+                    height: 48,
+                    backgroundColor: '#1976d2',
+                    fontWeight: 'bold',
+                    fontSize: '1.2rem',
+                    flexShrink: 0,
+                  }}
+                >
+                  {post.username ? post.username.charAt(0).toUpperCase() : 'U'}
+                </Avatar>
 
-              {/* === SMALLER GRAY TIMESTAMP === */}
-              {/* Post date displayed smaller and in gray */}
-              <Typography
-                variant="caption"
-                sx={{
-                  color: '#999',
-                  display: 'block',
-                  marginBottom: 2,
-                  fontSize: '0.75rem',
-                }}
-              >
-                {new Date(post.createdAt).toLocaleDateString()} at {new Date(post.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-              </Typography>
+                {/* Username and timestamp column */}
+                <Box sx={{ flex: 1 }}>
+                  {/* Username - bold */}
+                  <Typography
+                    variant="subtitle1"
+                    sx={{
+                      fontWeight: '700',
+                      color: '#000',
+                      marginBottom: 0.5,
+                    }}
+                  >
+                    {post.username}
+                  </Typography>
 
-              {/* Display post text/content */}
+                  {/* Timestamp - small gray */}
+                  <Typography
+                    variant="caption"
+                    sx={{
+                      color: '#999',
+                      fontSize: '0.75rem',
+                    }}
+                  >
+                    {new Date(post.createdAt).toLocaleDateString()} at {new Date(post.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                  </Typography>
+                </Box>
+              </Box>
+
+              {/* === POST CONTENT === */}
               <Typography
                 variant="body1"
                 sx={{
                   marginBottom: 2,
                   lineHeight: 1.6,
                   color: '#333',
+                  fontSize: '1rem',
                 }}
               >
                 {post.text}
               </Typography>
 
-              {/* === DISPLAY IMAGE IF IMAGE URL EXISTS === */}
-              {/* Display post image below text if imageUrl is provided */}
+              {/* === POST IMAGE === */}
               {post.imageUrl && (
                 <Box
                   component="img"
@@ -503,35 +559,41 @@ function Feed() {
                     width: '100%',
                     borderRadius: 1,
                     marginBottom: 2,
-                    maxHeight: '400px',
+                    maxHeight: '450px',
                     objectFit: 'cover',
                     backgroundColor: '#f0f0f0',
                   }}
                 />
               )}
 
-              {/* === STATS ROW === */}
-              {/* Display likes and comments count */}
+              {/* === STATS ROW: Likes and Comments Count === */}
               <Box
                 sx={{
                   display: 'flex',
                   gap: 3,
                   marginBottom: 2,
-                  paddingBottom: 2,
+                  paddingY: 1.5,
                   borderBottom: '1px solid #eee',
                 }}
               >
                 <Typography variant="body2" color="textSecondary" sx={{ fontSize: '0.9rem' }}>
-                  ❤️ {post.likesCount || 0} Likes
+                  ❤️ {post.likesCount || 0} {post.likesCount === 1 ? 'Like' : 'Likes'}
                 </Typography>
                 <Typography variant="body2" color="textSecondary" sx={{ fontSize: '0.9rem' }}>
-                  💬 {post.commentsCount || 0} Comments
+                  💬 {post.commentsCount || 0} {post.commentsCount === 1 ? 'Comment' : 'Comments'}
                 </Typography>
               </Box>
 
-              {/* === LIKE BUTTON - TURNS RED AFTER CLICKING === */}
-              {/* Like button with visual feedback - shows filled red heart when liked */}
-              <Box sx={{ marginBottom: 2 }}>
+              {/* === ACTION BUTTONS ROW: Like, Comment, Share === */}
+              <Box
+                sx={{
+                  display: 'flex',
+                  gap: 1,
+                  marginBottom: 2,
+                  justifyContent: 'space-around',
+                }}
+              >
+                {/* Like Button */}
                 <Button
                   startIcon={
                     likedPosts.has(post._id) ? (
@@ -544,8 +606,10 @@ function Feed() {
                   disabled={loadingLikes[post._id]}
                   size="small"
                   sx={{
+                    flex: 1,
                     color: likedPosts.has(post._id) ? '#e53935' : '#666',
                     textTransform: 'none',
+                    fontWeight: '500',
                     '&:hover': {
                       backgroundColor: 'rgba(229, 57, 53, 0.08)',
                     },
@@ -553,17 +617,51 @@ function Feed() {
                 >
                   {loadingLikes[post._id] ? 'Liking...' : 'Like'}
                 </Button>
+
+                {/* Comment Button */}
+                <Button
+                  startIcon={<CommentIcon  />}
+                  disabled={loadingComments[post._id]}
+                  size="small"
+                  sx={{
+                    flex: 1,
+                    color: '#666',
+                    textTransform: 'none',
+                    fontWeight: '500',
+                    '&:hover': {
+                      backgroundColor: 'rgba(25, 118, 210, 0.08)',
+                    },
+                  }}
+                >
+                  Comment
+                </Button>
+
+                {/* Share Button */}
+                <Button
+                  startIcon={<ShareIcon />}
+                  size="small"
+                  sx={{
+                    flex: 1,
+                    color: '#666',
+                    textTransform: 'none',
+                    fontWeight: '500',
+                    '&:hover': {
+                      backgroundColor: 'rgba(100, 100, 100, 0.08)',
+                    },
+                  }}
+                >
+                  Share
+                </Button>
               </Box>
 
-              {/* === VISUALLY SEPARATED COMMENT SECTION === */}
-              {/* Display existing comments if any */}
+              {/* === COMMENTS SECTION === */}
               {post.comments && post.comments.length > 0 && (
                 <Box
                   sx={{
-                    marginBottom: 2,
+                    marginTop: 2,
                     paddingTop: 2,
-                    borderTop: '2px solid #f0f0f0',
-                    backgroundColor: '#fafafa',
+                    borderTop: '1px solid #eee',
+                    backgroundColor: '#f8f9fa',
                     padding: 2,
                     borderRadius: 1,
                   }}
@@ -577,7 +675,7 @@ function Feed() {
                       fontSize: '0.95rem',
                     }}
                   >
-                    Comments ({post.comments.length}):
+                    Comments ({post.comments.length})
                   </Typography>
 
                   {/* Display each comment */}
@@ -586,8 +684,6 @@ function Feed() {
                       key={index}
                       sx={{
                         marginBottom: 1.5,
-                        paddingLeft: 1.5,
-                        borderLeft: '3px solid #1976d2',
                         paddingBottom: 1,
                       }}
                     >
@@ -597,11 +693,12 @@ function Feed() {
                           fontWeight: '600',
                           color: '#1976d2',
                           fontSize: '0.9rem',
+                          marginBottom: 0.3,
                         }}
                       >
                         {comment.username}
                       </Typography>
-                      <Typography variant="body2" sx={{ color: '#333', marginTop: 0.5 }}>
+                      <Typography variant="body2" sx={{ color: '#333', fontSize: '0.9rem' }}>
                         {comment.comment}
                       </Typography>
                     </Box>
@@ -609,17 +706,17 @@ function Feed() {
                 </Box>
               )}
 
-              {/* === ADD COMMENT SECTION - IMPROVED LAYOUT === */}
-              {/* Visually separated comment input area */}
+              {/* === ADD COMMENT SECTION === */}
               <Box
                 sx={{
                   display: 'flex',
-                  gap: 1,
+                  gap: 1.5,
                   marginTop: 2,
                   padding: 2,
-                  backgroundColor: '#fafafa',
+                  backgroundColor: '#f8f9fa',
                   borderRadius: 1,
                   flexDirection: { xs: 'column', sm: 'row' },
+                  alignItems: { xs: 'stretch', sm: 'center' },
                 }}
               >
                 {/* Comment input field */}
@@ -634,6 +731,7 @@ function Feed() {
                     '& .MuiOutlinedInput-root': {
                       borderRadius: 1,
                       backgroundColor: '#fff',
+                      fontSize: '0.9rem',
                     },
                   }}
                 />
@@ -649,7 +747,7 @@ function Feed() {
                     textTransform: 'none',
                     fontWeight: '600',
                     whiteSpace: 'nowrap',
-                    minWidth: { xs: '100%', sm: '100px' },
+                    minWidth: { xs: '100%', sm: '120px' },
                   }}
                 >
                   {loadingComments[post._id] ? 'Adding...' : 'Comment'}

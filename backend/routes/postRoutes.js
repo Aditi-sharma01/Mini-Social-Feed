@@ -2,6 +2,7 @@
 const express = require('express');
 const jwt = require('jsonwebtoken');
 const Post = require('../models/Post');
+const upload = require('../config/multer');
 
 // ==================== SETUP ====================
 
@@ -10,8 +11,7 @@ const router = express.Router();
 
 // ==================== POST /create - CREATE A NEW POST ====================
 
-router.post('/create', async (req, res) => {
-  try {
+router.post('/create', upload.single('image'), async (req, res) => {  try {
     // Step 1: Get token from the Authorization header
     // Expected format: "Bearer <token>"
     const token = req.headers.authorization?.split(' ')[1];
@@ -37,8 +37,9 @@ router.post('/create', async (req, res) => {
     const username = decodedToken.username;
 
     // Step 4: Get text and imageUrl from the request body
-    const { text, imageUrl } = req.body;
+const { text } = req.body;
 
+const imageUrl = req.file ? req.file.path : '';
     // Step 5: Validate - at least one of text or imageUrl must be provided
     if (!text && !imageUrl) {
       return res.status(400).json({
@@ -66,7 +67,7 @@ router.post('/create', async (req, res) => {
     });
   } catch (error) {
     // Handle any errors that occur during post creation
-    console.error('Post creation error:', error.message);
+    console.error('Post creation error:', error);
     res.status(500).json({
       error: 'An error occurred while creating the post. Please try again.',
       details: error.message, // Only for development - remove in production
@@ -110,9 +111,8 @@ router.get('/', async (req, res) => {
 
 // ==================== POST /:postId/like - LIKE A POST ====================
 
-router.post('/:postId/like', async (req, res) => {
-  try {
-    // Step 1: Get token from the Authorization header
+router.post('/:postId/like', async (req, res) => { 
+  try { // Step 1: Get token from the Authorization header
     // Expected format: "Bearer <token>"
     const token = req.headers.authorization?.split(' ')[1];
 
