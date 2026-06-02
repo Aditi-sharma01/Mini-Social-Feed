@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import axios from 'axios';
 import { Card, CardContent, Typography, Container, Box, Alert, TextField, Button } from '@mui/material';
+import FavoriteBorderIcon from '@mui/icons-material/FavoriteBorder';
 
 // Feed page component - displays posts from the backend API
 function Feed() {
@@ -24,6 +25,16 @@ function Feed() {
 
   // State for error message when post creation fails
   const [createPostError, setCreatePostError] = useState('');
+
+  // State to store comment input for each post separately
+  // Example: { "postId1": "comment text", "postId2": "comment text" }
+  const [commentInputs, setCommentInputs] = useState({});
+
+  // State to track which posts are being liked (to disable like button while sending)
+  const [loadingLikes, setLoadingLikes] = useState({});
+
+  // State to track which posts are having comments added (to disable comment button while sending)
+  const [loadingComments, setLoadingComments] = useState({});
 
   // Function to fetch posts from the backend - extracted so we can call it again after creating a post
   const fetchPosts = async () => {
@@ -118,6 +129,106 @@ function Feed() {
     } finally {
       // Stop showing loading state regardless of success or failure
       setCreatingPost(false);
+    }
+  };
+
+  // Function to handle liking a post
+  const handleLike = async (postId) => {
+    try {
+      // Get JWT token from localStorage
+      const token = localStorage.getItem('token');
+
+      // Check if token exists
+      if (!token) {
+        alert('Please log in first');
+        return;
+      }
+
+      // Mark this post as loading (disable like button)
+      setLoadingLikes({ ...loadingLikes, [postId]: true });
+
+      // Send POST request to like the post
+      const response = await axios.post(
+        `http://localhost:5000/api/posts/${postId}/like`,
+        {},
+        {
+          headers: {
+            Authorization: `Bearer ${token}`, // Add JWT token to header
+          },
+        }
+      );
+
+      // Fetch posts again to show updated like count
+      await fetchPosts();
+
+      // Log response for debugging
+      console.log('Post liked:', response.data);
+    } catch (err) {
+      // Show error message if like fails
+      alert('You already liked this post');
+
+      // Log error for debugging
+      console.error('Error liking post:', err);
+    } finally {
+      // Stop loading for this post (enable like button)
+      setLoadingLikes({ ...loadingLikes, [postId]: false });
+    }
+  };
+
+  // Function to handle adding a comment to a post
+  const handleComment = async (postId) => {
+    // Get comment text from state for this specific post
+    const commentText = commentInputs[postId] || '';
+
+    // Validate that comment is not empty
+    if (!commentText.trim()) {
+      alert('Comment cannot be empty');
+      return;
+    }
+
+    try {
+      // Get JWT token from localStorage
+      const token = localStorage.getItem('token');
+
+      // Check if token exists
+      if (!token) {
+        alert('Please log in first');
+        return;
+      }
+
+      // Mark this post as loading (disable comment button)
+      setLoadingComments({ ...loadingComments, [postId]: true });
+
+      // Send POST request to add a comment to the post
+      const response = await axios.post(
+        `http://localhost:5000/api/posts/${postId}/comment`,
+        {
+          comment: commentText, // Comment text
+        },
+        {
+          headers: {
+            Authorization: `Bearer ${token}`, // Add JWT token to header
+          },
+        }
+      );
+
+      // Clear the comment input for this post
+      setCommentInputs({ ...commentInputs, [postId]: '' });
+
+      // Fetch posts again to show new comment
+      await fetchPosts();
+
+      // Log response for debugging
+      console.log('Comment added:', response.data);
+    } catch (err) {
+      // Show error message if comment fails
+      alert('Failed to add comment');
+
+      // Log error for debugging
+      console.error('Error adding comment:', err);
+    } finally {
+      // Stop loading for this post (enable comment button)
+      setLoadingComments({ ...loadingComments, [postId]: false });
     }
   };
 
@@ -223,13 +334,68 @@ function Feed() {
             </Typography>
 
             {/* Display likes and comments count in a row */}
-            <Box sx={{ display: 'flex', gap: 2 }}>
+            <Box sx={{ display: 'flex', gap: 2, marginBottom: 2 }}>
               <Typography variant="body2" color="textSecondary">
                 Likes: {post.likesCount || 0}
               </Typography>
               <Typography variant="body2" color="textSecondary">
                 Comments: {post.commentsCount || 0}
               </Typography>
+            </Box>
+
+            {/* === LIKE BUTTON === */}
+            <Box sx={{ marginBottom: 2 }}>
+              <Button
+                startIcon={<FavoriteBorderIcon />}
+                onClick={() => handleLike(post._id)}
+                disabled={loadingLikes[post._id]}
+                size="small"
+              >
+                {loadingLikes[post._id] ? 'Liking...' : 'Like'}
+              </Button>
+            </Box>
+
+            {/* === DISPLAY EXISTING COMMENTS === */}
+            {post.comments && post.comments.length > 0 && (
+              <Box sx={{ marginBottom: 2, paddingTop: 2, borderTop: '1px solid #eee' }}>
+                <Typography variant="subtitle2" sx={{ fontWeight: 'bold', marginBottom: 1 }}>
+                  Comments ({post.comments.length}):
+                </Typography>
+
+                {/* Display each comment */}
+                {post.comments.map((comment, index) => (
+                  <Box key={index} sx={{ marginBottom: 1, paddingLeft: 2, borderLeft: '2px solid #ccc' }}>
+                    <Typography variant="body2" sx={{ fontWeight: 'bold' }}>
+                      {comment.username}
+                    </Typography>
+                    <Typography variant="body2">{comment.comment}</Typography>
+                  </Box>
+                ))}
+              </Box>
+            )}
+
+            {/* === ADD COMMENT SECTION === */}
+            <Box sx={{ display: 'flex', gap: 1, marginTop: 2 }}>
+              {/* Comment input field */}
+              <TextField
+                fullWidth
+                size="small"
+                placeholder="Add a comment..."
+                value={commentInputs[post._id] || ''}
+                onChange={(e) => setCommentInputs({ ...commentInputs, [post._id]: e.target.value })}
+                disabled={loadingComments[post._id]}
+              />
+
+              {/* Add Comment button */}
+              <Button
+                variant="contained"
+                color="primary"
+                size="small"
+                onClick={() => handleComment(post._id)}
+                disabled={loadingComments[post._id]}
+              >
+                {loadingComments[post._id] ? 'Adding...' : 'Comment'}
+              </Button>
             </Box>
           </CardContent>
         </Card>
@@ -238,6 +404,5 @@ function Feed() {
   );
 }
 
-export default Feed;
 
-  
+export default Feed;
