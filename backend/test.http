@@ -1,0 +1,52 @@
+### Mini Social Feed - API Testing
+
+### POST - User Signup
+POST http://localhost:5000/api/auth/signup
+Content-Type: application/json
+
+{
+  "username": "Aditi",
+  "email": "aditi@test.com",
+  "password": "123456"
+}
+
+### POST - User Login
+POST http://localhost:5000/api/auth/login
+Content-Type: application/json
+
+{
+  "email": "aditi@test.com",
+  "password": "123456"
+}
+
+
+### Create Post
+
+POST http://localhost:5000/api/posts/create
+Content-Type: application/json
+Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOiI2YTFlN2Y4YTVjZGIwZmVhODgwMWY2OTQiLCJ1c2VybmFtZSI6IkFkaXRpIiwiaWF0IjoxNzgwMzg5Mzg0LCJleHAiOjE3ODA5OTQxODR9.6mk-P1RIWrvuNdzlFFkxXcMHYUWd403vlTyvIzN5_Wk
+
+{
+  "text": "My first post from Mini Social Feed"
+}
+
+
+### GET - Fetch All Posts
+GET http://localhost:5000/api/posts/
+
+
+
+### POST - Like a Post
+POST http://localhost:5000/api/posts/6a1e9618b408aabc2fb99af3/like
+Content-Type: application/json
+Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOiI2YTFlN2Y4YTVjZGIwZmVhODgwMWY2OTQiLCJ1c2VybmFtZSI6IkFkaXRpIiwiaWF0IjoxNzgwMzg5Mzg0LCJleHAiOjE3ODA5OTQxODR9.6mk-P1RIWrvuNdzlFFkxXcMHYUWd403vlTyvIzN5_Wk
+
+
+### POST - Add a Comment
+POST http://localhost:5000/api/posts/6a1e9618b408aabc2fb99af3/comment
+Content-Type: application/json
+Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOiI2YTFlN2Y4YTVjZGIwZmVhODgwMWY2OTQiLCJ1c2VybmFtZSI6IkFkaXRpIiwiaWF0IjoxNzgwMzg5Mzg0LCJleHAiOjE3ODA5OTQxODR9.6mk-P1RIWrvuNdzlFFkxXcMHYUWd403vlTyvIzN5_Wk
+
+{
+  "comment": "Great post!"
+}
