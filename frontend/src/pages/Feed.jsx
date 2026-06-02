@@ -1,10 +1,16 @@
 import { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
-import { Card, CardContent, Typography, Container, Box, Alert, TextField, Button } from '@mui/material';
+import { Card, CardContent, Typography, Container, Box, Alert, TextField, Button, AppBar, Toolbar } from '@mui/material';
 import FavoriteBorderIcon from '@mui/icons-material/FavoriteBorder';
+import FavoriteIcon from '@mui/icons-material/Favorite';
+import LogoutIcon from '@mui/icons-material/Logout';
 
-// Feed page component - displays posts from the backend API
+// Feed page component - displays posts from the backend API with improved UI
 function Feed() {
+  // Hook for navigation - used to redirect to login after logout
+  const navigate = useNavigate();
+
   // State to store all posts from the API
   const [posts, setPosts] = useState([]);
 
@@ -36,6 +42,12 @@ function Feed() {
   // State to track which posts are having comments added (to disable comment button while sending)
   const [loadingComments, setLoadingComments] = useState({});
 
+  const [likedPosts, setLikedPosts] = useState(new Set());
+  
+
+  // State to store logged-in username from localStorage
+  const [username, setUsername] = useState('');
+
   // Function to fetch posts from the backend - extracted so we can call it again after creating a post
   const fetchPosts = async () => {
     try {
@@ -60,11 +72,23 @@ function Feed() {
   };
 
   // useEffect hook - runs once when component mounts (loads)
-  // This is where we fetch the posts from the backend
+  // This is where we fetch the posts from the backend and get username from localStorage
   useEffect(() => {
+    // Get username from localStorage (stored during login)
+    const storedUsername = localStorage.getItem('username');
+    if (storedUsername) {
+      setUsername(storedUsername);
+    }
+
     // Call the fetchPosts function
     fetchPosts();
   }, []); // Empty array means this runs only once when component loads
+
+  // Function to handle logout
+  const handleLogout = () => {
+  localStorage.clear();
+  navigate('/login');
+};
 
   // Function to handle creating a new post
   const handleCreatePost = async () => {
@@ -132,7 +156,8 @@ function Feed() {
     }
   };
 
-  // Function to handle liking a post
+  
+
   const handleLike = async (postId) => {
     try {
       // Get JWT token from localStorage
@@ -145,8 +170,10 @@ function Feed() {
       }
 
       // Mark this post as loading (disable like button)
-      setLoadingLikes({ ...loadingLikes, [postId]: true });
-
+      setLoadingLikes(prev => ({
+  ...prev,
+  [postId]: true
+}));
       // Send POST request to like the post
       const response = await axios.post(
         `http://localhost:5000/api/posts/${postId}/like`,
@@ -158,6 +185,13 @@ function Feed() {
         }
       );
 
+      // Add post to liked posts set for UI feedback (show filled heart)
+     setLikedPosts(prev => {
+  const updated = new Set(prev);
+  updated.add(postId);
+  return updated;
+});
+
       // Fetch posts again to show updated like count
       await fetchPosts();
 
@@ -165,13 +199,19 @@ function Feed() {
       console.log('Post liked:', response.data);
     } catch (err) {
       // Show error message if like fails
-      alert('You already liked this post');
-
+      alert(
+  err.response?.data?.error ||
+  err.response?.data?.message ||
+  'Failed to like post'
+);
       // Log error for debugging
       console.error('Error liking post:', err);
     } finally {
       // Stop loading for this post (enable like button)
-      setLoadingLikes({ ...loadingLikes, [postId]: false });
+      setLoadingLikes(prev => ({
+  ...prev,
+  [postId]: true
+}));
     }
   };
 
@@ -197,7 +237,10 @@ function Feed() {
       }
 
       // Mark this post as loading (disable comment button)
-      setLoadingComments({ ...loadingComments, [postId]: true });
+      setLoadingComments(prev => ({
+  ...prev,
+  [postId]: true
+}));
 
       // Send POST request to add a comment to the post
       const response = await axios.post(
@@ -228,179 +271,356 @@ function Feed() {
       console.error('Error adding comment:', err);
     } finally {
       // Stop loading for this post (enable comment button)
-      setLoadingComments({ ...loadingComments, [postId]: false });
+      setLoadingComments(prev => ({
+  ...prev,
+  [postId]: false
+}));
     }
   };
 
   return (
-    <Container maxWidth="md">
-      {/* Page title */}
-      <Box sx={{ marginTop: 3, marginBottom: 3 }}>
-        <Typography variant="h4" component="h1">
-          Social Feed
-        </Typography>
-      </Box>
-
-      {/* === CREATE POST SECTION === */}
-      {/* Card component to hold the create post form */}
-      <Card sx={{ marginBottom: 3, padding: 2 }}>
-        <CardContent>
-          {/* Section title */}
-          <Typography variant="h6" component="div" sx={{ marginBottom: 2, fontWeight: 'bold' }}>
-            Create a Post
+    <Box sx={{ minHeight: '100vh', backgroundColor: '#f5f5f5' }}>
+      {/* === IMPROVED HEADER WITH USERNAME AND LOGOUT === */}
+      {/* Navigation bar at the top with username display and logout button */}
+      <AppBar position="sticky" sx={{ marginBottom: 4, boxShadow: '0 2px 8px rgba(0,0,0,0.1)' }}>
+        <Toolbar sx={{ display: 'flex', justifyContent: 'space-between' }}>
+          {/* App title */}
+          <Typography variant="h5" component="div" sx={{ fontWeight: 'bold' }}>
+            Social Feed
           </Typography>
 
-          {/* Success message - shown when post is created successfully */}
-          {successMessage && (
-            <Alert severity="success" sx={{ marginBottom: 2 }}>
-              {successMessage}
-            </Alert>
-          )}
-
-          {/* Error message - shown when post creation fails */}
-          {createPostError && (
-            <Alert severity="error" sx={{ marginBottom: 2 }}>
-              {createPostError}
-            </Alert>
-          )}
-
-          {/* Multiline text field for user to type post */}
-          <TextField
-            fullWidth
-            multiline
-            rows={4}
-            placeholder="What's on your mind?"
-            value={newPost}
-            onChange={(e) => setNewPost(e.target.value)}
-            disabled={creatingPost} // Disable input while post is being created
-            sx={{ marginBottom: 2 }}
-          />
-
-          {/* Create Post button */}
-          <Button
-            variant="contained"
-            color="primary"
-            onClick={handleCreatePost}
-            disabled={creatingPost} // Disable button while post is being created
-          >
-            {creatingPost ? 'Creating...' : 'Create Post'}
-          </Button>
-        </CardContent>
-      </Card>
-
-      {/* === FEED SECTION === */}
-      {/* Show loading message while fetching posts */}
-      {loading && (
-        <Alert severity="info" sx={{ marginBottom: 2 }}>
-          Loading posts...
-        </Alert>
-      )}
-
-      {/* Show error message if API call fails */}
-      {error && (
-        <Alert severity="error" sx={{ marginBottom: 2 }}>
-          {error}
-        </Alert>
-      )}
-
-      {/* Show "No posts available" if there are no posts */}
-      {!loading && posts.length === 0 && !error && (
-        <Card>
-          <CardContent>
-            <Typography variant="body1" color="textSecondary">
-              No posts available.
-            </Typography>
-          </CardContent>
-        </Card>
-      )}
-
-      {/* Display each post in a Card component */}
-      {posts.map((post) => (
-        <Card key={post._id} sx={{ marginBottom: 2 }}>
-          <CardContent>
-            {/* Display username */}
-            <Typography variant="h6" component="div" sx={{ fontWeight: 'bold' }}>
-              {post.username}
-            </Typography>
-
-            {/* Display post text/content */}
-            <Typography variant="body1" sx={{ marginTop: 1, marginBottom: 2 }}>
-              {post.text}
-            </Typography>
-
-            {/* Display post date */}
-            <Typography variant="body2" color="textSecondary" sx={{ marginBottom: 2 }}>
-              {new Date(post.createdAt).toLocaleDateString()} {new Date(post.createdAt).toLocaleTimeString()}
-            </Typography>
-
-            {/* Display likes and comments count in a row */}
-            <Box sx={{ display: 'flex', gap: 2, marginBottom: 2 }}>
-              <Typography variant="body2" color="textSecondary">
-                Likes: {post.likesCount || 0}
+          {/* Right side: username and logout button */}
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+            {/* Display logged-in username */}
+            {username && (
+              <Typography variant="body1" sx={{ fontWeight: '500' }}>
+                Welcome, {username}!
               </Typography>
-              <Typography variant="body2" color="textSecondary">
-                Comments: {post.commentsCount || 0}
-              </Typography>
-            </Box>
-
-            {/* === LIKE BUTTON === */}
-            <Box sx={{ marginBottom: 2 }}>
-              <Button
-                startIcon={<FavoriteBorderIcon />}
-                onClick={() => handleLike(post._id)}
-                disabled={loadingLikes[post._id]}
-                size="small"
-              >
-                {loadingLikes[post._id] ? 'Liking...' : 'Like'}
-              </Button>
-            </Box>
-
-            {/* === DISPLAY EXISTING COMMENTS === */}
-            {post.comments && post.comments.length > 0 && (
-              <Box sx={{ marginBottom: 2, paddingTop: 2, borderTop: '1px solid #eee' }}>
-                <Typography variant="subtitle2" sx={{ fontWeight: 'bold', marginBottom: 1 }}>
-                  Comments ({post.comments.length}):
-                </Typography>
-
-                {/* Display each comment */}
-                {post.comments.map((comment, index) => (
-                  <Box key={index} sx={{ marginBottom: 1, paddingLeft: 2, borderLeft: '2px solid #ccc' }}>
-                    <Typography variant="body2" sx={{ fontWeight: 'bold' }}>
-                      {comment.username}
-                    </Typography>
-                    <Typography variant="body2">{comment.comment}</Typography>
-                  </Box>
-                ))}
-              </Box>
             )}
 
-            {/* === ADD COMMENT SECTION === */}
-            <Box sx={{ display: 'flex', gap: 1, marginTop: 2 }}>
-              {/* Comment input field */}
-              <TextField
-                fullWidth
-                size="small"
-                placeholder="Add a comment..."
-                value={commentInputs[post._id] || ''}
-                onChange={(e) => setCommentInputs({ ...commentInputs, [post._id]: e.target.value })}
-                disabled={loadingComments[post._id]}
-              />
+            {/* Logout button - clears localStorage and redirects to login */}
+            <Button
+              variant="contained"
+              color="error"
+              startIcon={<LogoutIcon />}
+              onClick={handleLogout}
+              sx={{ textTransform: 'none', fontSize: '0.95rem' }}
+            >
+              Logout
+            </Button>
+          </Box>
+        </Toolbar>
+      </AppBar>
 
-              {/* Add Comment button */}
-              <Button
-                variant="contained"
-                color="primary"
-                size="small"
-                onClick={() => handleComment(post._id)}
-                disabled={loadingComments[post._id]}
-              >
-                {loadingComments[post._id] ? 'Adding...' : 'Comment'}
-              </Button>
-            </Box>
+      <Container maxWidth="md" sx={{ paddingBottom: 4 }}>
+        {/* === CREATE POST SECTION === */}
+        {/* Card with improved styling - rounded corners, subtle shadow, better spacing */}
+        <Card
+          sx={{
+            marginBottom: 4,
+            borderRadius: 2,
+            boxShadow: '0 4px 12px rgba(0,0,0,0.08)',
+            backgroundColor: '#fff',
+          }}
+        >
+          <CardContent sx={{ padding: 3 }}>
+            {/* Section title */}
+            <Typography
+              variant="h6"
+              component="div"
+              sx={{ marginBottom: 3, fontWeight: '600', color: '#333' }}
+            >
+              What's on your mind?
+            </Typography>
+
+            {/* Success message - shown when post is created successfully */}
+            {successMessage && (
+              <Alert severity="success" sx={{ marginBottom: 2 }}>
+                {successMessage}
+              </Alert>
+            )}
+
+            {/* Error message - shown when post creation fails */}
+            {createPostError && (
+              <Alert severity="error" sx={{ marginBottom: 2 }}>
+                {createPostError}
+              </Alert>
+            )}
+
+            {/* Multiline text field for user to type post - improved styling */}
+            <TextField
+              fullWidth
+              multiline
+              rows={4}
+              placeholder="Share your thoughts..."
+              value={newPost}
+              onChange={(e) => setNewPost(e.target.value)}
+              disabled={creatingPost}
+              sx={{
+                marginBottom: 2,
+                '& .MuiOutlinedInput-root': {
+                  borderRadius: 1,
+                  backgroundColor: '#fafafa',
+                },
+              }}
+            />
+
+            {/* Create Post button - improved styling */}
+            <Button
+              variant="contained"
+              color="primary"
+              onClick={handleCreatePost}
+              disabled={creatingPost}
+              sx={{
+                textTransform: 'none',
+                fontSize: '1rem',
+                fontWeight: '600',
+                padding: '10px 24px',
+                borderRadius: 1,
+              }}
+            >
+              {creatingPost ? 'Creating...' : 'Post'}
+            </Button>
           </CardContent>
         </Card>
-      ))}
-    </Container>
+
+        {/* === FEED SECTION === */}
+        {/* Show loading message while fetching posts */}
+        {loading && (
+          <Alert severity="info" sx={{ marginBottom: 3 }}>
+            Loading posts...
+          </Alert>
+        )}
+
+        {/* Show error message if API call fails */}
+        {error && (
+          <Alert severity="error" sx={{ marginBottom: 3 }}>
+            {error}
+          </Alert>
+        )}
+
+        {/* Show "No posts available" if there are no posts */}
+        {!loading && posts.length === 0 && !error && (
+          <Card
+            sx={{
+              borderRadius: 2,
+              boxShadow: '0 4px 12px rgba(0,0,0,0.08)',
+              textAlign: 'center',
+              padding: 4,
+            }}
+          >
+            <Typography variant="body1" color="textSecondary">
+              No posts available yet. Be the first to share!
+            </Typography>
+          </Card>
+        )}
+
+        {/* Display each post in a Card component - improved styling */}
+        {posts.map((post) => (
+          <Card
+            key={post._id}
+            sx={{
+              marginBottom: 3,
+              borderRadius: 2,
+              boxShadow: '0 4px 12px rgba(0,0,0,0.08)',
+              backgroundColor: '#fff',
+              transition: 'box-shadow 0.3s ease',
+              '&:hover': {
+                boxShadow: '0 6px 16px rgba(0,0,0,0.12)',
+              },
+            }}
+          >
+            <CardContent sx={{ padding: 3 }}>
+              {/* === HIGHLIGHTED USERNAME === */}
+              {/* Username displayed prominently in bold */}
+              <Typography
+                variant="h6"
+                component="div"
+                sx={{
+                  fontWeight: '700',
+                  color: '#1976d2',
+                  marginBottom: 1,
+                }}
+              >
+                {post.username}
+              </Typography>
+
+              {/* === SMALLER GRAY TIMESTAMP === */}
+              {/* Post date displayed smaller and in gray */}
+              <Typography
+                variant="caption"
+                sx={{
+                  color: '#999',
+                  display: 'block',
+                  marginBottom: 2,
+                  fontSize: '0.75rem',
+                }}
+              >
+                {new Date(post.createdAt).toLocaleDateString()} at {new Date(post.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+              </Typography>
+
+              {/* Display post text/content */}
+              <Typography
+                variant="body1"
+                sx={{
+                  marginBottom: 2,
+                  lineHeight: 1.6,
+                  color: '#333',
+                }}
+              >
+                {post.text}
+              </Typography>
+
+              {/* === STATS ROW === */}
+              {/* Display likes and comments count */}
+              <Box
+                sx={{
+                  display: 'flex',
+                  gap: 3,
+                  marginBottom: 2,
+                  paddingBottom: 2,
+                  borderBottom: '1px solid #eee',
+                }}
+              >
+                <Typography variant="body2" color="textSecondary" sx={{ fontSize: '0.9rem' }}>
+                  ❤️ {post.likesCount || 0} Likes
+                </Typography>
+                <Typography variant="body2" color="textSecondary" sx={{ fontSize: '0.9rem' }}>
+                  💬 {post.commentsCount || 0} Comments
+                </Typography>
+              </Box>
+
+              {/* === LIKE BUTTON - TURNS RED AFTER CLICKING === */}
+              {/* Like button with visual feedback - shows filled red heart when liked */}
+              <Box sx={{ marginBottom: 2 }}>
+                <Button
+                  startIcon={
+                    likedPosts.has(post._id) ? (
+                      <FavoriteIcon sx={{ color: '#e53935' }} />
+                    ) : (
+                      <FavoriteBorderIcon />
+                    )
+                  }
+                  onClick={() => handleLike(post._id)}
+                  disabled={loadingLikes[post._id]}
+                  size="small"
+                  sx={{
+                    color: likedPosts.has(post._id) ? '#e53935' : '#666',
+                    textTransform: 'none',
+                    '&:hover': {
+                      backgroundColor: 'rgba(229, 57, 53, 0.08)',
+                    },
+                  }}
+                >
+                  {loadingLikes[post._id] ? 'Liking...' : 'Like'}
+                </Button>
+              </Box>
+
+              {/* === VISUALLY SEPARATED COMMENT SECTION === */}
+              {/* Display existing comments if any */}
+              {post.comments && post.comments.length > 0 && (
+                <Box
+                  sx={{
+                    marginBottom: 2,
+                    paddingTop: 2,
+                    borderTop: '2px solid #f0f0f0',
+                    backgroundColor: '#fafafa',
+                    padding: 2,
+                    borderRadius: 1,
+                  }}
+                >
+                  <Typography
+                    variant="subtitle2"
+                    sx={{
+                      fontWeight: '700',
+                      marginBottom: 1.5,
+                      color: '#333',
+                      fontSize: '0.95rem',
+                    }}
+                  >
+                    Comments ({post.comments.length}):
+                  </Typography>
+
+                  {/* Display each comment */}
+                  {post.comments.map((comment, index) => (
+                    <Box
+                      key={index}
+                      sx={{
+                        marginBottom: 1.5,
+                        paddingLeft: 1.5,
+                        borderLeft: '3px solid #1976d2',
+                        paddingBottom: 1,
+                      }}
+                    >
+                      <Typography
+                        variant="body2"
+                        sx={{
+                          fontWeight: '600',
+                          color: '#1976d2',
+                          fontSize: '0.9rem',
+                        }}
+                      >
+                        {comment.username}
+                      </Typography>
+                      <Typography variant="body2" sx={{ color: '#333', marginTop: 0.5 }}>
+                        {comment.comment}
+                      </Typography>
+                    </Box>
+                  ))}
+                </Box>
+              )}
+
+              {/* === ADD COMMENT SECTION - IMPROVED LAYOUT === */}
+              {/* Visually separated comment input area */}
+              <Box
+                sx={{
+                  display: 'flex',
+                  gap: 1,
+                  marginTop: 2,
+                  padding: 2,
+                  backgroundColor: '#fafafa',
+                  borderRadius: 1,
+                  flexDirection: { xs: 'column', sm: 'row' },
+                }}
+              >
+                {/* Comment input field */}
+                <TextField
+                  fullWidth
+                  size="small"
+                  placeholder="Add a comment..."
+                  value={commentInputs[post._id] || ''}
+                  onChange={(e) => setCommentInputs({ ...commentInputs, [post._id]: e.target.value })}
+                  disabled={loadingComments[post._id]}
+                  sx={{
+                    '& .MuiOutlinedInput-root': {
+                      borderRadius: 1,
+                      backgroundColor: '#fff',
+                    },
+                  }}
+                />
+
+                {/* Add Comment button */}
+                <Button
+                  variant="contained"
+                  color="primary"
+                  size="small"
+                  onClick={() => handleComment(post._id)}
+                  disabled={loadingComments[post._id]}
+                  sx={{
+                    textTransform: 'none',
+                    fontWeight: '600',
+                    whiteSpace: 'nowrap',
+                    minWidth: { xs: '100%', sm: '100px' },
+                  }}
+                >
+                  {loadingComments[post._id] ? 'Adding...' : 'Comment'}
+                </Button>
+              </Box>
+            </CardContent>
+          </Card>
+        ))}
+      </Container>
+    </Box>
   );
 }
 
