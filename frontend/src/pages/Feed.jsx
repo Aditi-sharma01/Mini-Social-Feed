@@ -48,6 +48,9 @@ function Feed() {
   // State to store logged-in username from localStorage
   const [username, setUsername] = useState('');
 
+  // State for image URL input - stores the image URL user types
+  const [imageUrl, setImageUrl] = useState('');
+
   // Function to fetch posts from the backend - extracted so we can call it again after creating a post
   const fetchPosts = async () => {
     try {
@@ -96,9 +99,9 @@ function Feed() {
     setSuccessMessage('');
     setCreatePostError('');
 
-    // Validate that post text is not empty
-    if (!newPost.trim()) {
-      setCreatePostError('Post cannot be empty');
+    // Validate that at least text or image URL is provided
+    if (!newPost.trim() && !imageUrl.trim()) {
+      setCreatePostError('Please add text or an image URL');
       return;
     }
 
@@ -121,6 +124,7 @@ function Feed() {
         'http://localhost:5000/api/posts/create',
         {
           text: newPost, // Post text/content
+          imageUrl: imageUrl, // Image URL (optional)
         },
         {
           headers: {
@@ -132,8 +136,9 @@ function Feed() {
       // Show success message
       setSuccessMessage('Post created successfully!');
 
-      // Clear the text input field
+      // Clear the text and image URL input fields
       setNewPost('');
+      setImageUrl('');
 
       // Fetch posts again to show the new post immediately
       await fetchPosts();
@@ -172,7 +177,7 @@ function Feed() {
       // Mark this post as loading (disable like button)
       setLoadingLikes(prev => ({
   ...prev,
-  [postId]: true
+  [postId]: false
 }));
       // Send POST request to like the post
       const response = await axios.post(
@@ -365,6 +370,22 @@ function Feed() {
               }}
             />
 
+            {/* Image URL input field - user can add image URL (optional) */}
+            <TextField
+              fullWidth
+              placeholder="Image URL (optional)"
+              value={imageUrl}
+              onChange={(e) => setImageUrl(e.target.value)}
+              disabled={creatingPost}
+              sx={{
+                marginBottom: 2,
+                '& .MuiOutlinedInput-root': {
+                  borderRadius: 1,
+                  backgroundColor: '#fafafa',
+                },
+              }}
+            />
+
             {/* Create Post button - improved styling */}
             <Button
               variant="contained"
@@ -470,6 +491,24 @@ function Feed() {
               >
                 {post.text}
               </Typography>
+
+              {/* === DISPLAY IMAGE IF IMAGE URL EXISTS === */}
+              {/* Display post image below text if imageUrl is provided */}
+              {post.imageUrl && (
+                <Box
+                  component="img"
+                  src={post.imageUrl}
+                  alt="Post image"
+                  sx={{
+                    width: '100%',
+                    borderRadius: 1,
+                    marginBottom: 2,
+                    maxHeight: '400px',
+                    objectFit: 'cover',
+                    backgroundColor: '#f0f0f0',
+                  }}
+                />
+              )}
 
               {/* === STATS ROW === */}
               {/* Display likes and comments count */}
