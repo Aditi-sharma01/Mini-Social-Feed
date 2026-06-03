@@ -37,7 +37,7 @@ function Login() {
 
     try {
       // Send POST request to backend login endpoint
-      const response = await axios.post('http://localhost:5000/api/auth/login', {
+      const response = await axios.post('https://mini-social-feed-backend-9zrh.onrender.com/api/auth/login', {
         email,
         password,
       });

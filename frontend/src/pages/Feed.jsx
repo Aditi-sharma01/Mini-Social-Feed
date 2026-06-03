@@ -7,6 +7,8 @@ import FavoriteIcon from '@mui/icons-material/Favorite';
 import LogoutIcon from '@mui/icons-material/Logout';
 import CommentIcon from "@mui/icons-material/Comment";
 import ShareIcon from '@mui/icons-material/Share';
+import PhotoCameraIcon from '@mui/icons-material/PhotoCamera';
+const API_URL = "https://mini-social-feed-backend-9zrh.onrender.com";
 
 // Feed page component - displays posts from the backend API with improved UI
 function Feed() {
@@ -57,7 +59,7 @@ function Feed() {
   const fetchPosts = async () => {
     try {
       // Send GET request to fetch all posts
-      const response = await axios.get('http://localhost:5000/api/posts');
+      const response = await axios.get(`${API_URL}/api/posts`);
 
       // Store posts in state
       setPosts(response.data.posts);
@@ -131,7 +133,7 @@ if (selectedImage) {
 }
 
 const response = await axios.post(
-  'http://localhost:5000/api/posts/create',
+  `${API_URL}/api/posts/create`,
   formData,
   {
     headers: {
@@ -189,7 +191,7 @@ const response = await axios.post(
 }));
       // Send POST request to like the post
       const response = await axios.post(
-        `http://localhost:5000/api/posts/${postId}/like`,
+        `${API_URL}/api/posts/${postId}/like`,
         {},
         {
           headers: {
@@ -257,7 +259,7 @@ const response = await axios.post(
 
       // Send POST request to add a comment to the post
       const response = await axios.post(
-        `http://localhost:5000/api/posts/${postId}/comment`,
+        `${API_URL}/api/posts/${postId}/comment`,
         {
           comment: commentText, // Comment text
         },
@@ -355,8 +357,12 @@ const response = await axios.post(
         </Toolbar>
       </AppBar>
 
-      <Container maxWidth="md" sx={{ paddingBottom: 4 }}>
-        {/* === CREATE POST SECTION === */}
+<Container
+  maxWidth="lg"
+  sx={{
+    paddingBottom: 4,
+  }}
+>        {/* === CREATE POST SECTION === */}
         <Card
           sx={{
             marginBottom: 4,
@@ -410,17 +416,42 @@ const response = await axios.post(
 
 {/* Image upload field */}
 <Box sx={{ marginBottom: 3 }}>
-  <input
-    type="file"
-    accept="image/*"
-    onChange={(e) => setSelectedImage(e.target.files[0])}
-    disabled={creatingPost}
-  />
+  <Button
+    component="label"
+    sx={{
+      minWidth: 55,
+      width: 55,
+      height: 55,
+      borderRadius: '12px',
+      backgroundColor: '#f5f5f5',
+      border: '1px solid #ddd',
+      color: '#1976d2',
+    }}
+  >
+    <PhotoCameraIcon />
+
+    <input
+      hidden
+      type="file"
+      accept="image/*"
+      onChange={(e) => setSelectedImage(e.target.files[0])}
+      disabled={creatingPost}
+    />
+  </Button>
 
   {selectedImage && (
-    <Typography variant="body2" sx={{ mt: 1 }}>
-      Selected: {selectedImage.name}
-    </Typography>
+    <Box
+      component="img"
+      src={URL.createObjectURL(selectedImage)}
+      alt="preview"
+      sx={{
+        width: '100%',
+        maxHeight: 250,
+        objectFit: 'cover',
+        borderRadius: 2,
+        mt: 2,
+      }}
+    />
   )}
 </Box>
 
